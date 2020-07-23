@@ -19,9 +19,9 @@ test = pd.read_csv('test.csv')
 # print(train.head())
 all_data = pd.concat((train.loc[:,'MSSubClass':'SaleCondition'],
                       test.loc[:,'MSSubClass':'SaleCondition']))
-matplotlib.rcParams['figure.figsize'] = (12.0, 6.0)
+# matplotlib.rcParams['figure.figsize'] = (12.0, 6.0)
 prices = pd.DataFrame({'price':train['SalePrice'], "log(price + 1)":np.log1p(train["SalePrice"])})
-prices.hist()
+# prices.hist()
 #plt.show()
 
 train["SalePrice"] = np.log1p(train["SalePrice"])
@@ -42,3 +42,35 @@ y = train.SalePrice
 def rmse_cv(model):
     rmse = np.sqrt(-cross_val_score(model, X_train, y, scoring='neg_mean_squared_error', cv=5))
     return rmse
+
+# model_ridge = Ridge() <-- I don't think we need this Ridge model...
+alphas = [0.05, 0.1, 0.3, 1, 3, 5, 10, 15, 30, 50, 75]
+cv_ridge = [rmse_cv(Ridge(alpha=alpha)).mean() for alpha in alphas]
+cv_ridge = pd.Series(cv_ridge, index=alphas)
+# cv_ridge.plot(title= "Determining the best alpha parameter")
+# plt.xlabel("alpha")
+# plt.ylabel("rmse")
+# plt.show()
+
+print("Cross-validation RMSE of this Ridge Linear Model: {}".format(cv_ridge.min()))
+
+model_lasso = LassoCV(alphas = [1, 0.1, 0.001, 0.0005]).fit(X_train, y)
+print("Cross-validation RMSE of this Lasso Linear Model: {}".format(rmse_cv(model_lasso).mean()))
+coef = pd.Series(model_lasso.coef_, index=X_train.columns)
+print(f"Lasso picked {sum(coef != 0)} variables and eliminated the other {sum(coef == 0)} variables")
+imp_coef = pd.concat([coef.sort_values().head(10), coef.sort_values().tail(10)])
+# matplotlib.rcParams['figure.figsize'] = (14.0, 8.0)
+# imp_coef.plot(kind = "barh")
+# plt.title("Coefficients in the Lasso Model")
+# plt.show()
+
+matplotlib.rcParams['figure.figsize'] = (6.0,6.0)
+preds = pd.DataFrame({'preds':model_lasso.predict(X_train), 'true':y})
+preds['residuals'] = preds['true'] - preds['preds']
+preds.plot(x = 'preds', y = 'residuals', kind='scatter')
+# plt.show()
+
+# Predicting on the test set
+predictions = np.expm1(model_lasso.predict(X_test))
+my_submission = pd.DataFrame({'Id': test.Id, 'SalePrice':predictions})
+my_submission.to_csv('Submissions.csv', index=False)
