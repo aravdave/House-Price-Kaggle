@@ -2,8 +2,10 @@
 # Hence, most of this code with not be mine since I am looking at highly-ranked Kaggle notebooks with in-depth, beginner-friendly explanations/walkthroughs.
 # Credits:
 #       Regularized Linear Models - https://www.kaggle.com/apapiu/regularized-linear-models/comments
+#       https://blog.cambridgespark.com/hyperparameter-tuning-in-xgboost-4ff9100a3b2f
 
 # Importing packages
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -12,7 +14,8 @@ import matplotlib
 from scipy.stats import skew
 from scipy.stats.stats import pearsonr
 from sklearn.linear_model import Ridge, RidgeCV, ElasticNet, LassoCV, LassoLarsCV
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, train_test_split
+import xgboost as xgb
 
 train = pd.read_csv('train.csv')
 test = pd.read_csv('test.csv')
@@ -70,7 +73,36 @@ preds['residuals'] = preds['true'] - preds['preds']
 preds.plot(x = 'preds', y = 'residuals', kind='scatter')
 # plt.show()
 
-# Predicting on the test set
-predictions = np.expm1(model_lasso.predict(X_test))
-my_submission = pd.DataFrame({'Id': test.Id, 'SalePrice':predictions})
-my_submission.to_csv('Submissions.csv', index=False)
+# # Predicting on the test set
+# predictions = np.expm1(model_lasso.predict(X_test))
+# my_submission = pd.DataFrame({'Id': test.Id, 'SalePrice':predictions})
+# my_submission.to_csv('Submissions.csv', index=False)
+
+
+enhanced_train = pd.concat([X_train, y])
+print(enhanced_train)
+
+dtrain = xgb.DMatrix(X_train, label = y)
+dtest = xgb.DMatrix(X_test)
+
+# *** Everything in this comment block was from the "Regularized Linear Models" Kaggle Notebook
+# params = {'max_depth':2, 'eta':0.1}
+# xgb_model = xgb.cv(params, dtrain, num_boost_round=500, early_stopping_rounds=10)
+# xgb_model.loc[30:,['test-rmse-mean', 'train-rmse-mean']].plot()
+# print(xgb_model[['test-rmse-mean']].idxmin())
+
+params = {
+    'max_depth':6,
+    'min_child_weight': 1,
+    'eta': .3,
+    'subsample': 1,
+    'colsample_bytree':1,
+    'objective':'reg:linear',
+    'eval_metric': 'rmse'
+}
+# print(train.shape[0])
+
+# model_xgb = xgb.train(
+#     params,
+#     dtrain
+# )
